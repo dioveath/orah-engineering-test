@@ -15,12 +15,13 @@ export const HomeBoardPage: React.FC = () => {
   const [getStudents, data, loadState] = useApi<{ students: Person[] }>({ url: "get-homeboard-students" })
   const [sortBy, setSortBy] = useState<SortBy>("first_name")
   const [orderBy, setOrderBy] = useState<OrderBy>("asc")
+  const [searchTerm, setSearchTerm] = useState<string>("");
 
   useEffect(() => {
     void getStudents()
   }, [getStudents])
 
-  const onToolbarAction = (action: ToolbarAction) => {
+  const onToolbarAction = (action: ToolbarAction, value?: string) => {
     switch (action) {
       case "roll":
         setIsRollMode(true)
@@ -30,6 +31,9 @@ export const HomeBoardPage: React.FC = () => {
         break
       case "sort":
         setSortBy(sortBy === "first_name" ? "last_name" : "first_name")
+        break
+      case "search":
+        setSearchTerm(value ?? "")
         break
     }
   }
@@ -54,6 +58,12 @@ export const HomeBoardPage: React.FC = () => {
     }
   }
 
+  const getFilterFunction = (searchTerm: string) => {
+    return (student: Person) => {
+      return student.first_name.toLowerCase().includes(searchTerm.toLowerCase()) || student.last_name.toLowerCase().includes(searchTerm.toLowerCase())
+    }
+  }
+
   return (
     <>
       <S.PageContainer>
@@ -73,7 +83,7 @@ export const HomeBoardPage: React.FC = () => {
 
         {loadState === "loaded" && data?.students && (
           <>
-            {data.students.sort(getCompareStudentFunc(sortBy, orderBy)).map((s) => (
+            {data.students.filter(getFilterFunction(searchTerm)).sort(getCompareStudentFunc(sortBy, orderBy)).map((s) => (
               <StudentListTile key={s.id} isRollMode={isRollMode} student={s} />
             ))}
           </>
@@ -90,7 +100,7 @@ export const HomeBoardPage: React.FC = () => {
   )
 }
 
-type ToolbarAction = "roll" | "sort" | "order"
+type ToolbarAction = "roll" | "sort" | "order" | "search"
 type OrderBy = "asc" | "desc"
 type SortBy = "first_name" | "last_name"
 interface ToolbarState {
@@ -114,7 +124,9 @@ const Toolbar: React.FC<ToolbarProps> = (props) => {
         </select>
         <label htmlFor="sort-student"> Sort By </label>
       </div>
-      <div>Search</div>
+      <div>
+        <input type="text" onChange={(e) => onItemClick("search", e.target.value) }/>
+      </div>
       <S.Button onClick={() => onItemClick("roll")}>Start Roll</S.Button>
     </S.ToolbarContainer>
   )
