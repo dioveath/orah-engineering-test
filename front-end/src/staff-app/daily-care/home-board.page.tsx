@@ -13,14 +13,24 @@ import { ActiveRollOverlay, ActiveRollAction } from "staff-app/components/active
 export const HomeBoardPage: React.FC = () => {
   const [isRollMode, setIsRollMode] = useState(false)
   const [getStudents, data, loadState] = useApi<{ students: Person[] }>({ url: "get-homeboard-students" })
+  const [sortBy, setSortBy] = useState<SortBy>("first_name")
+  const [orderBy, setOrderBy] = useState<OrderBy>("asc")
 
   useEffect(() => {
     void getStudents()
   }, [getStudents])
 
   const onToolbarAction = (action: ToolbarAction) => {
-    if (action === "roll") {
-      setIsRollMode(true)
+    switch (action) {
+      case "roll":
+        setIsRollMode(true)
+        break
+      case "order":
+        setOrderBy(orderBy === "asc" ? "desc" : "asc")
+        break
+      case "sort":
+        setSortBy(sortBy === "first_name" ? "last_name" : "first_name")
+        break
     }
   }
 
@@ -30,10 +40,30 @@ export const HomeBoardPage: React.FC = () => {
     }
   }
 
+  const getCompareStudentFunc = (sortBy: SortBy, orderBy: OrderBy) => {
+    return (a: Person, b: Person) => {
+      const aValue = a[sortBy]
+      const bValue = b[sortBy]
+      if (aValue < bValue) {
+        return orderBy === "asc" ? -1 : 1
+      }
+      if (aValue > bValue) {
+        return orderBy === "asc" ? 1 : -1
+      }
+      return 0
+    }
+  }
+
   return (
     <>
       <S.PageContainer>
-        <Toolbar onItemClick={onToolbarAction} />
+        <Toolbar
+          onItemClick={onToolbarAction}
+          state={{
+            sortBy,
+            orderBy,
+          }}
+        />
 
         {loadState === "loading" && (
           <CenteredContainer>
@@ -43,7 +73,7 @@ export const HomeBoardPage: React.FC = () => {
 
         {loadState === "loaded" && data?.students && (
           <>
-            {data.students.map((s) => (
+            {data.students.sort(getCompareStudentFunc(sortBy, orderBy)).map((s) => (
               <StudentListTile key={s.id} isRollMode={isRollMode} student={s} />
             ))}
           </>
@@ -60,15 +90,30 @@ export const HomeBoardPage: React.FC = () => {
   )
 }
 
-type ToolbarAction = "roll" | "sort"
+type ToolbarAction = "roll" | "sort" | "order"
+type OrderBy = "asc" | "desc"
+type SortBy = "first_name" | "last_name"
+interface ToolbarState {
+  sortBy: SortBy
+  orderBy: OrderBy
+}
 interface ToolbarProps {
   onItemClick: (action: ToolbarAction, value?: string) => void
+  state: ToolbarState
 }
 const Toolbar: React.FC<ToolbarProps> = (props) => {
-  const { onItemClick } = props
+  const { onItemClick, state } = props
   return (
     <S.ToolbarContainer>
-      <div onClick={() => onItemClick("sort")}>First Name</div>
+      <div>
+        <input name="" type="checkbox" value="" id="order-switch" onClick={() => onItemClick("order")} />
+        <label htmlFor="order-switch"> {state.orderBy} </label>
+        <select name="studentsort" id="sort-student" onChange={() => onItemClick("sort")}>
+          <option value="first_name">First Name</option>
+          <option value="last_name">Last Name</option>
+        </select>
+        <label htmlFor="sort-student"> Sort By </label>
+      </div>
       <div>Search</div>
       <S.Button onClick={() => onItemClick("roll")}>Start Roll</S.Button>
     </S.ToolbarContainer>
